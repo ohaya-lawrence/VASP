@@ -1,0 +1,105 @@
+#!/bin/bash
+echo "" > /tmp/display.$$
+declare -a  node
+declare  -a coler
+typeset -i i n down jobexec  free offline unknown minnumber  number
+n=0
+i=0
+down=0
+jobexec=0
+free=0
+partused=0
+offline=0
+unknown=0
+number=0
+totalnodes=`pbsnodes -l all | wc  -l `
+for nodename  in `pbsnodes -l all | awk '{print $1}'`
+do
+trap "" TSTP
+pbsnodes -q $nodename | grep  jobs  |  grep -v status  | awk  '{print $3}' | tr "," "\n"  > /tmp/nodenamefile.$$
+sed -i '/^$/d'  /tmp/nodenamefile.$$
+#minnumber=`cat  /tmp/nodenamefile.$$  |  sed -n 1p  | awk -F  "/"  '{print $1}' | awk -F "-" '{print $1}'`
+#large=`cat  /tmp/nodenamefile.$$  |  sed -n '$p'  | awk -F  "/"  '{print $1}' | awk -F "-" '{print $2}'`
+#if [ $large == 0 ]
+#then
+#let number=large-minnumber
+#else
+#let number=large-minnumber+1
+#fi 
+for  jiedian in `cat  /tmp/nodenamefile.$$`
+do
+large=`echo $jiedian |   awk -F  "/"  '{print $1}' | awk -F "-" '{print $2}'`
+if [ -z $large ]
+then
+let numbertmp=1
+else
+minnumber=`echo $jiedian | awk -F  "/"  '{print $1}' | awk -F "-" '{print $1}'`
+##if [ $minnumber = 0 ]
+##then
+let numbertmp=large-minnumber+1
+##else
+##let numbertmp=large-minnumber
+#fi
+fi
+let number=numbertmp+number
+numbertmp=0
+done
+##echo $number
+
+np=`pbsnodes  -q  $nodename  |  grep np | awk -F = '{print $2}' | sed s/[[:space:]]//g`
+##number=`cat /tmp/nodenamefile.$$ | wc -l`
+echo ""$nodename"-"$number"/${np}" > /tmp/display.$$
+statu=`pbsnodes -l  all | grep "\<${nodename}\>" | awk '{print $2}'`
+node[$i]=`cat /tmp/display.$$  | grep ${nodename}`
+case ${statu} in 
+free)
+if [ $number = 0 ]
+then
+coler[$i]=32
+let free=free+1
+else 
+coler[$i]=34
+let partused=partused+1
+fi
+;;
+job-exclusive)
+coler[$i]=35
+let jobexec=jobexec+1
+;;
+down)
+coler[$i]=31
+let down=down+1
+;;
+offline)
+coler[$i]=33
+let offline=offline+1
+;;
+unknown)
+coler[$i]=36
+let unknown=unknown+1
+;;
+esac
+let i=i+1
+number=0
+done
+##display 
+echo "------------------------------------------------------------------ "
+
+echo -e "\033[40;32m There is total $totalnodes  nodes in the system  \033[0m
+
+\e[40;32m free=$free \e[40;35m jobexece=$jobexec \e[40;31m down=$down \e[40;34m partlyused=$partused \e[40;33m offline=$offline \e[40;36m unknown=$unknown \e[m
+------------------------------------------------------------------
+------------------------------------------------------------------"
+
+#echo -e "\e[40;35m job-exclusive \e[40;32m  free \e[40;31m  down \e[40;34m  partlyused \e[40;33m offline \e[40;36m unknown \e[m "
+   
+#echo "------------------------------------------------------------------" 
+
+echo -e "\e[40;${coler[0]}m ${node[0]} \e[40;${coler[1]}m ${node[1]}  \e[m "
+echo -e "\e[40;${coler[2]}m ${node[2]} \e[40;${coler[3]}m ${node[3]}  \e[m "
+echo -e "\e[40;${coler[4]}m ${node[4]} \e[40;${coler[5]}m ${node[5]}  \e[m "
+echo -e "\e[40;${coler[6]}m ${node[6]} \e[40;${coler[7]}m ${node[7]}  \e[m "
+echo -e "\e[40;${coler[8]}m ${node[8]} \e[40;${coler[9]}m ${node[9]}  \e[m "
+rm -rf /tmp/display.$$
+rm -rf /tmp/nodenamefile.$$ 
+rm -rf /tmp/nodenamelast.$$ 
